@@ -454,6 +454,11 @@ echoes the typed text (`10km to mi ×`) rather than the conversion's own shorten
 `CalcCurrency` mirrors `CalcUnits`' shape: a lookup table plus a `parseConversion` over the same
 `expr from (to|in|->) to` token shape, so `eur to usd` implies an amount of 1 exactly like `m to ft`.
 A leading sign is swapped back into amount-first order, so `€20 to GBP` and `20€ to GBP` parse alike.
+The connector may be omitted with an explicit amount (`10 usd cny`, `€20 GBP`, `2*50 usd eur`).
+Both names must resolve to currencies and neither may also name a measurement unit: ambiguous
+`pounds` still needs a connector. Bare `usd eur`, unknown targets and three-currency chains stay
+silent. This shorthand applies to a complete conversion; conversions inside arithmetic still use
+the explicit connector and parentheses, such as `(10 usd to eur) * 2`.
 
 The table is **generated except for the judgement calls**. `node Scripts/gen-currencies.js` joins three
 sources on the ISO code and emits `CurrencyData.generated.swift`:
