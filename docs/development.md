@@ -192,3 +192,11 @@ left out and decided by hand in `CalcCurrency.contested`. The crypto tickers are
 they have no external source of truth, so `CalcCurrency.crypto` is hand-written, and that same list is
 the set of symbols the fetch asks for. Re-run the script when a currency is added or retired; nothing
 breaks in the meantime, since an unquoted code just reports "no exchange rate".
+
+## Personal release builds
+
+`Scripts/build-personal.sh` builds the stable release recorded in `.agents/tinycast-release.json`
+with the committed personal patches. Set `DEVELOPER_DIR` to the installed Xcode first.
+The signed bundle records `TinycastUpstreamRelease`, `TinycastUpstreamCommit`, and
+`TinycastPatchRevision`. About shows `Personal build · <seven-character revision>` beneath the
+version only when the patch revision exists; ordinary builds have no extra label.

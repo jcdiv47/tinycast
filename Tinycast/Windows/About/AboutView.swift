@@ -67,6 +67,13 @@ struct AboutView: View {
                     .overlay(
                         Capsule().strokeBorder(Theme.Colors.cardStroke, lineWidth: 1)
                     )
+                if let revision = Bundle.main.infoDictionary?["TinycastPatchRevision"] as? String,
+                    !revision.isEmpty
+                {
+                    Text("Personal build · \(revision.prefix(7))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
                 Button {
                     core.updateCoordinator.checkForUpdates()
                 } label: {
