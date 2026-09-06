@@ -130,3 +130,10 @@ Each item is explained in [testing.md](docs/testing.md#definition-of-done).
 - `./Scripts/lint.sh` is clean.
 - `grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/` returns nothing.
 - Any doc your change made wrong is fixed in the same commit.
+
+## Personal release updates
+
+When updating this fork's installed app, use
+[the project release skill](.agents/skills/tinycast-update-release/SKILL.md).
+Keep `personal` based on the latest published stable upstream tag with personal patches above it;
+`.agents/tinycast-release.json` records that base.
