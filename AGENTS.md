@@ -133,7 +133,9 @@ Each item is explained in [testing.md](docs/testing.md#definition-of-done).
 
 ## Personal release updates
 
-When updating this fork's installed app, use
-[the project release skill](.agents/skills/tinycast-update-release/SKILL.md).
+For “update with patches” or updates to this fork's installed app, use
+[update-with-patch](.agents/skills/update-with-patch/SKILL.md).
 Keep `personal` based on the latest published stable upstream tag with personal patches above it;
 `.agents/tinycast-release.json` records that base.
+[PATCHES.md](PATCHES.md) lists our patches and update history; keep it current whenever a
+personal patch is added, changed, or retired.
