@@ -20,6 +20,14 @@ This file explains what we carry; Git holds the implementation history.
 
 ## Update history
 
+### 2026-09-12 — v0.10.15 (no upstream change)
+
+- Upstream's latest published stable release is still v0.10.15; v0.10.16–v0.10.19 are prereleases,
+  so the base is unchanged and no rebase was needed.
+- Preserved P001, P002 and W001 unchanged. Committed the W002 skill rename and this inventory.
+- Rebuilt and reinstalled: 62 harnesses, lint, model purity, Debug and Release builds,
+  signature/identity/version/revision/hash checks and relaunch passed. Built with Xcode 27 beta.
+
 ### 2026-09-09 — v0.10.5 → v0.10.15
 
 - Preserved P001; adapted its test to upstream's required clock and calendar arguments.
