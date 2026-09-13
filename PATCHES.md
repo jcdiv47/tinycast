@@ -20,6 +20,16 @@ This file explains what we carry; Git holds the implementation history.
 
 ## Update history
 
+### 2026-09-13 — v0.10.15 → v0.10.20
+
+- Rebased `personal` onto upstream `v0.10.20` (`036262e`); all 7 commits applied cleanly
+  with no conflicts, and `git range-diff` shows each patch identical before and after.
+- Preserved P001, P002, W001 and W002 unchanged. Upstream implements neither the currency
+  shorthand nor the personal build label (verified against the diff with the new tag).
+- Pre-install checks: 70 harnesses, lint, model purity, and the Debug build passed with no
+  new warnings. The suite needs `SDKROOT` from `xcrun` plus `LIBRARY_PATH="$SDKROOT/usr/lib"`
+  on Apple silicon or 9 sqlite-linking harnesses fail. Built with Xcode 27 beta.
+
 ### 2026-09-12 — v0.10.15 (no upstream change)
 
 - Upstream's latest published stable release is still v0.10.15; v0.10.16–v0.10.19 are prereleases,
