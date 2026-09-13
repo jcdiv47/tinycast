@@ -29,6 +29,9 @@ This file explains what we carry; Git holds the implementation history.
 - Pre-install checks: 70 harnesses, lint, model purity, and the Debug build passed with no
   new warnings. The suite needs `SDKROOT` from `xcrun` plus `LIBRARY_PATH="$SDKROOT/usr/lib"`
   on Apple silicon or 9 sqlite-linking harnesses fail. Built with Xcode 27 beta.
+- Rebuilt and reinstalled: Release personal build signed and verified, installed over a
+  backed-up v0.10.15 bundle; signature/identity/version/revision/hash checks and relaunch
+  passed. Receipt: `build/personal-0.10.20-receipt.txt`.
 
 ### 2026-09-12 — v0.10.15 (no upstream change)
 
