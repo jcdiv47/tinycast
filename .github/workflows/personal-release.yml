@@ -1,0 +1,129 @@
+name: Personal Release
+
+run-name: "Personal release from ${{ github.ref_name }} #${{ github.run_number }}"
+
+# Dispatched from `personal`; the tag is derived, so a re-run can never reuse or skip a number.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: personal-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/personal'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the base and the release tag
+        id: meta
+        run: |
+          BASE_TAG="$(jq -r .tag .agents/tinycast-release.json)"
+          # build-personal.sh checks this tag against the recorded commit, so it must exist locally.
+          git fetch --no-tags https://github.com/abue-ammar/tinycast.git \
+            "refs/tags/${BASE_TAG}:refs/tags/${BASE_TAG}"
+          VERSION="${BASE_TAG#v}"
+          RELEASED="$(git tag --points-at HEAD --list "v*-personal.*")"
+          if [ -n "$RELEASED" ]; then
+            echo "::error::HEAD is already released as ${RELEASED}"
+            exit 1
+          fi
+          LAST="$(git tag --list "v${VERSION}-personal.*" | sed 's/.*-personal\.//' | sort -n | tail -n1)"
+          TAG="v${VERSION}-personal.$(( ${LAST:-0} + 1 ))"
+          echo "Releasing ${TAG} on ${BASE_TAG}"
+          {
+            echo "base_tag=${BASE_TAG}"
+            echo "tag=${TAG}"
+            echo "zip_file=Tinycast-${TAG#v}.zip"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH="$(printf '%s\n' /Applications/Xcode_26*.app | sort -V | tail -n1)"
+          if [ ! -d "$XCODE_PATH" ]; then
+            echo "::error::No Xcode 26.x found on this runner."
+            printf '%s\n' /Applications/Xcode*.app
+            exit 1
+          fi
+          echo "Using $XCODE_PATH"
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+
+      # The same identity the local builds use, or macOS drops the Accessibility grant on install.
+      - name: Import signing certificate
+        env:
+          P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "${P12_BASE64}" ]; then
+            echo "::error::SIGNING_P12_BASE64 is not set; see docs/development.md#personal-release-builds"
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KPW="$(openssl rand -base64 24)"
+          echo "${P12_BASE64}" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "${P12_PASSWORD}" -A -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          read -ra SEARCH <<< "$(security list-keychains -d user | tr -d '"')"
+          security list-keychains -d user -s "$KEYCHAIN" "${SEARCH[@]}"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Build
+        run: ./Scripts/build-personal.sh
+
+      - name: Verify the bundle
+        run: |
+          APP=build/PersonalDerivedData/Build/Products/Release/Tinycast.app
+          plist() { /usr/libexec/PlistBuddy -c "Print $1" "$APP/Contents/Info.plist"; }
+          codesign --verify --deep --strict "$APP"
+          codesign -dvv "$APP" 2>&1 | grep -qx 'Authority=Tinycast Self-Signed' \
+            || { echo "::error::Wrong signer"; exit 1; }
+          [ "$(plist CFBundleIdentifier)" = com.tinycast.app ] || { echo "::error::Wrong bundle ID"; exit 1; }
+          [ "$(plist TinycastPatchRevision)" = "$GITHUB_SHA" ] || { echo "::error::Wrong revision"; exit 1; }
+
+      # `ditto --keepParent --sequesterRsrc` is the only zip that keeps the signature verifiable.
+      - name: Package
+        env:
+          ZIP_FILE: ${{ steps.meta.outputs.zip_file }}
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent --sequesterRsrc \
+            build/PersonalDerivedData/Build/Products/Release/Tinycast.app "dist/${ZIP_FILE}"
+          (cd dist && shasum -a 256 "${ZIP_FILE}" > "${ZIP_FILE}.sha256")
+
+      - name: Compose release notes
+        env:
+          BASE_TAG: ${{ steps.meta.outputs.base_tag }}
+        run: |
+          BLOB="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}"
+          {
+            echo "Upstream [${BASE_TAG}](${GITHUB_SERVER_URL}/abue-ammar/tinycast/releases/tag/${BASE_TAG})"
+            echo "($(jq -r .commit .agents/tinycast-release.json | cut -c1-7)) with personal patches"
+            echo "at ${GITHUB_SHA:0:7}. Full inventory: [PATCHES.md](${BLOB}/PATCHES.md)."
+            echo
+            awk '/^## Active app patches/{on=1; next} /^## /{on=0} on' PATCHES.md \
+              | sed -E "s#\]\(([^)h][^)]*)\)#](${BLOB}/\1)#g"
+            echo
+            echo "Install with \`Scripts/install-personal.sh\`. The in-app updater tracks upstream, so"
+            echo "it offers unpatched builds; don't use it."
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          ZIP_FILE: ${{ steps.meta.outputs.zip_file }}
+        run: |
+          gh release create "$TAG" "dist/${ZIP_FILE}" "dist/${ZIP_FILE}.sha256" \
+            --target "$GITHUB_SHA" --title "Tinycast ${TAG#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest

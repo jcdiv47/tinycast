@@ -1,0 +1,58 @@
+name: Personal CI
+
+# The definition of done from docs/testing.md, run on every change to the patched branch.
+on:
+  push:
+    branches: [personal, "update/**"]
+  pull_request:
+    branches: [personal]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH="$(printf '%s\n' /Applications/Xcode_26*.app | sort -V | tail -n1)"
+          if [ ! -d "$XCODE_PATH" ]; then
+            echo "::error::No Xcode 26.x found on this runner."
+            printf '%s\n' /Applications/Xcode*.app
+            exit 1
+          fi
+          echo "Using $XCODE_PATH"
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+
+      - name: Install SwiftLint
+        run: command -v swiftlint >/dev/null || brew install swiftlint
+
+      - name: Model layers stay pure
+        run: |
+          if grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/; then
+            echo "::error::A Features/*/Model file imports a UI framework"
+            exit 1
+          fi
+
+      - name: Lint
+        run: ./Scripts/lint.sh
+
+      # SQLite must link from the SDK, not a Homebrew copy of the wrong architecture.
+      - name: Harnesses
+        run: |
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT LIBRARY_PATH="$SDKROOT/usr/lib"
+          ./Scripts/run-tests.sh
+
+      - name: Debug build
+        run: |
+          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build

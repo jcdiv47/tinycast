@@ -206,3 +206,30 @@ It picks the selected or newest installed Xcode unless `DEVELOPER_DIR` is set, r
 downgrade, quits the app, backs up the old bundle under `build/installed-backup-*`, swaps in a
 verified copy, checks the signer and executable hash, relaunches, and writes
 `build/personal-<version>-receipt.txt`.
+
+### Personal CI and GitHub releases
+
+On the fork, `personal` is the default branch and upstream's own workflows are disabled.
+`.github/workflows/personal-ci.yml` runs the [definition of done](testing.md#definition-of-done) —
+purity grep, lint, harnesses, Debug build — on every push to `personal` or `update/**` and on PRs.
+
+`.github/workflows/personal-release.yml` is dispatched from `personal`
+(`gh workflow run personal-release.yml --ref personal`). It fetches the recorded upstream tag,
+runs `build-personal.sh` on Xcode 26, verifies the seal, signer, bundle ID and revision, and
+publishes `Tinycast-<version>-personal.<n>.zip` plus its `.sha256` as release
+`v<version>-personal.<n>`. `<n>` counts rebuilds on one upstream base and starts at 1; a commit
+that already carries a release tag is refused.
+
+The build signs with the secrets `SIGNING_P12_BASE64` and `SIGNING_P12_PASSWORD`, which must hold the
+same `Tinycast Self-Signed` identity local builds use. Export that one identity, not the
+keychain: [signing.md](signing.md#2-generate-the-ci-secrets)'s `security export -t identities`
+also exports every other identity in the login keychain. In Keychain Access, select
+`Tinycast Self-Signed` under **My Certificates**, **File → Export Items…** as `.p12`, then:
+
+```sh
+openssl pkcs12 -in /tmp/signing.p12 -nokeys -passin pass:"$P12_PASSWORD" | grep subject=
+# Exactly one line, CN=Tinycast Self-Signed. Anything more means another key would be uploaded.
+base64 -i /tmp/signing.p12 | tr -d '\n' | gh secret set SIGNING_P12_BASE64 --repo jcdiv47/tinycast
+gh secret set SIGNING_P12_PASSWORD --repo jcdiv47/tinycast --body "$P12_PASSWORD"
+rm -f /tmp/signing.p12
+```

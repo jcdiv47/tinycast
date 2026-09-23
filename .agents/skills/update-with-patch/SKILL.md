@@ -52,6 +52,9 @@ The result is the latest stable release plus our patches, installed in `/Applica
    hash against the build, and successful relaunch. Save artifact/backup paths and check
    results in a local receipt under `build/`.
 
+To publish, push `personal` only when asked, wait for Personal CI to pass, then dispatch
+`gh workflow run personal-release.yml --ref personal` and report the release tag.
+
 Report the stable version, personal revision, preserved/redundant patches, checks, installed
 path, receipt, and limitations. The built-in updater installs unpatched binaries: do not use
 it for this workflow or disable its notifications. This skill does not schedule updates.
