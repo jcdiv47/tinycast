@@ -200,3 +200,9 @@ with the committed personal patches. Set `DEVELOPER_DIR` to the installed Xcode 
 The signed bundle records `TinycastUpstreamRelease`, `TinycastUpstreamCommit`, and
 `TinycastPatchRevision`. About shows `Personal build · <seven-character revision>` beneath the
 version only when the patch revision exists; ordinary builds have no extra label.
+
+`Scripts/install-personal.sh` runs that build and installs it over `/Applications/Tinycast.app`.
+It picks the selected or newest installed Xcode unless `DEVELOPER_DIR` is set, refuses a
+downgrade, quits the app, backs up the old bundle under `build/installed-backup-*`, swaps in a
+verified copy, checks the signer and executable hash, relaunches, and writes
+`build/personal-<version>-receipt.txt`.

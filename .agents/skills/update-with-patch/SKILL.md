@@ -41,7 +41,8 @@ The result is the latest stable release plus our patches, installed in `/Applica
    Debug build as specified in `docs/testing.md`. Fix patch regressions; identify upstream
    or toolchain warnings. If SQLite links an Intel library on Apple silicon, set `SDKROOT`
    from `xcrun --sdk macosx --show-sdk-path` and `LIBRARY_PATH="$SDKROOT/usr/lib"` for tests.
-3. Commit tracked changes, then run `Scripts/build-personal.sh`. It stamps the stable
+3. Commit tracked changes, then run `Scripts/install-personal.sh`, which performs steps 3–5
+   through `Scripts/build-personal.sh`. It stamps the stable
    version and source revisions before signing. Keep `com.tinycast.app` and the existing
    `Tinycast Self-Signed` identity. Do not alter `project.yml` or invent version suffixes.
 4. After checks pass, gracefully quit the installed app, back up its bundle, and replace it
