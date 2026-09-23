@@ -213,12 +213,18 @@ On the fork, `personal` is the default branch and upstream's own workflows are d
 `.github/workflows/personal-ci.yml` runs the [definition of done](testing.md#definition-of-done) —
 purity grep, lint, harnesses, Debug build — on every push to `personal` or `update/**` and on PRs.
 
-`.github/workflows/personal-release.yml` is dispatched from `personal`
-(`gh workflow run personal-release.yml --ref personal`). It fetches the recorded upstream tag,
-runs `build-personal.sh` on Xcode 26, verifies the seal, signer, bundle ID and revision, and
-publishes `Tinycast-<version>-personal.<n>.zip` plus its `.sha256` as release
-`v<version>-personal.<n>`. `<n>` counts rebuilds on one upstream base and starts at 1; a commit
-that already carries a release tag is refused.
+Pushing a tag `v<version>-personal.<n>` releases that commit through
+`.github/workflows/personal-release.yml`. `<version>` must be the recorded base, `<n>` counts rebuilds
+on it from 1 without gaps, and the commit must be on `personal` with no other release tag:
+
+```sh
+git tag v0.11.3-personal.2 && git push origin v0.11.3-personal.2
+```
+
+The job waits up to 30 minutes for Personal CI to pass on that commit, then fetches the recorded
+upstream tag, runs `build-personal.sh` on Xcode 26, verifies the seal, signer, bundle ID and revision,
+and publishes `Tinycast-<version>-personal.<n>.zip` plus its `.sha256`. A tag that fails a check
+publishes nothing; delete it with `git push origin :refs/tags/<tag>` before tagging again.
 
 The build signs with the secrets `SIGNING_P12_BASE64` and `SIGNING_P12_PASSWORD`, which must hold the
 same `Tinycast Self-Signed` identity local builds use. Export that one identity, not the

@@ -19,7 +19,7 @@ This file explains what we carry; Git holds the implementation history.
 | W002 | Define the stable-release update, patch review, verification, backup, and installation workflow. | [update-with-patch](.agents/skills/update-with-patch/SKILL.md), [AGENTS.md](AGENTS.md#personal-release-updates), this inventory. |
 | W003 | Build, verify, back up, and install the personal release over `/Applications/Tinycast.app` in one command, then relaunch it and write a receipt. | [install-personal.sh](Scripts/install-personal.sh), [build documentation](docs/development.md#personal-release-builds). |
 | W004 | Run the definition-of-done checks in GitHub Actions on `personal`, `update/**`, and PRs. | [personal-ci.yml](.github/workflows/personal-ci.yml), [CI documentation](docs/development.md#personal-ci-and-github-releases). |
-| W005 | Build, sign, verify, and publish `v<version>-personal.<n>` GitHub releases from `personal` with our own signing identity. | [personal-release.yml](.github/workflows/personal-release.yml), [CI documentation](docs/development.md#personal-ci-and-github-releases). |
+| W005 | On a pushed `v<version>-personal.<n>` tag whose commit passed Personal CI, build, sign with our own identity, verify, and publish a GitHub release. | [personal-release.yml](.github/workflows/personal-release.yml), [CI documentation](docs/development.md#personal-ci-and-github-releases). |
 
 ## Update history
 

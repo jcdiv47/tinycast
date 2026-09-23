@@ -1,10 +1,11 @@
 name: Personal Release
 
-run-name: "Personal release from ${{ github.ref_name }} #${{ github.run_number }}"
+run-name: "Tinycast ${{ github.ref_name }}"
 
-# Dispatched from `personal`; the tag is derived, so a re-run can never reuse or skip a number.
+# Pushing a tag is the release; it names a commit on `personal` that Personal CI already passed.
 on:
-  workflow_dispatch:
+  push:
+    tags: ["v*-personal.*"]
 
 permissions:
   contents: write
@@ -14,33 +15,59 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # On Linux, so waiting for a CI run still in flight costs no macOS minutes.
+  ci-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for Personal CI on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in $(seq 1 60); do
+            RUN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow personal-ci.yml \
+              --commit "$GITHUB_SHA" --event push --limit 1 --json status,conclusion \
+              -q '.[0] | "\(.status) \(.conclusion)"')"
+            case "$RUN" in
+              "completed success") echo "Personal CI passed on ${GITHUB_SHA}"; exit 0 ;;
+              completed*) echo "::error::Personal CI on ${GITHUB_SHA} ended ${RUN#completed }"; exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "::error::No passing Personal CI on ${GITHUB_SHA} within 30 minutes; is it on personal?"
+          exit 1
+
   release:
-    if: github.ref == 'refs/heads/personal'
+    needs: ci-gate
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Resolve the base and the release tag
+      - name: Check the tag against the base
         id: meta
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
           BASE_TAG="$(jq -r .tag .agents/tinycast-release.json)"
           # build-personal.sh checks this tag against the recorded commit, so it must exist locally.
           git fetch --no-tags https://github.com/abue-ammar/tinycast.git \
             "refs/tags/${BASE_TAG}:refs/tags/${BASE_TAG}"
           VERSION="${BASE_TAG#v}"
-          RELEASED="$(git tag --points-at HEAD --list "v*-personal.*")"
-          if [ -n "$RELEASED" ]; then
-            echo "::error::HEAD is already released as ${RELEASED}"
-            exit 1
-          fi
-          LAST="$(git tag --list "v${VERSION}-personal.*" | sed 's/.*-personal\.//' | sort -n | tail -n1)"
-          TAG="v${VERSION}-personal.$(( ${LAST:-0} + 1 ))"
-          echo "Releasing ${TAG} on ${BASE_TAG}"
+          fail() { echo "::error::$1"; exit 1; }
+          [[ "$TAG" =~ ^v${VERSION//./\\.}-personal\.([1-9][0-9]*)$ ]] \
+            || fail "${TAG} does not match the recorded base; expected v${VERSION}-personal.<n>"
+          N="${BASH_REMATCH[1]}"
+          git merge-base --is-ancestor HEAD origin/personal || fail "${TAG} is not on personal"
+          OTHERS="$(git tag --points-at HEAD --list "v*-personal.*" | grep -vx "$TAG" || true)"
+          [ -z "$OTHERS" ] || fail "This commit is already released as ${OTHERS}"
+          LAST="$(git tag --list "v${VERSION}-personal.*" | grep -vx "$TAG" \
+            | sed 's/.*-personal\.//' | sort -n | tail -n1)"
+          [ "$N" = "$(( ${LAST:-0} + 1 ))" ] || fail "Expected v${VERSION}-personal.$(( ${LAST:-0} + 1 ))"
           {
             echo "base_tag=${BASE_TAG}"
-            echo "tag=${TAG}"
             echo "zip_file=Tinycast-${TAG#v}.zip"
           } >> "$GITHUB_OUTPUT"
 
@@ -130,9 +157,9 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.meta.outputs.tag }}
+          TAG: ${{ github.ref_name }}
           ZIP_FILE: ${{ steps.meta.outputs.zip_file }}
         run: |
           gh release create "$TAG" "dist/${ZIP_FILE}" "dist/${ZIP_FILE}.sha256" \
-            --target "$GITHUB_SHA" --title "Tinycast ${TAG#v}" \
+            --verify-tag --title "Tinycast ${TAG#v}" \
             --notes-file "$RUNNER_TEMP/notes.md" --latest
