@@ -20,6 +20,21 @@ This file explains what we carry; Git holds the implementation history.
 
 ## Update history
 
+### 2026-09-23 — v0.10.20 → v0.11.3
+
+- Upstream rewrote its history: `v0.10.20` now points at `8ee0586b`, whose tree differs from our
+  old base `036262e` only by one line in `docs/ui.md`. Rebased with
+  `--onto v0.11.3 036262e`; all 9 commits applied cleanly and `git range-diff` shows each identical.
+- Preserved P001, P002, W001 and W002 unchanged. Upstream's calculator changes (locale number
+  format, px/rem/em, time zones) don't implement the currency shorthand, and there's still no
+  personal build label.
+- Pre-install checks: lint, model purity, and the Debug build passed (the only warnings are
+  upstream `ClipboardView` isolated-conformance warnings under Xcode 27 beta). 74 of 76 harnesses
+  pass; `codex-turn-test` and `installed-ai-test` fail identically on pristine v0.11.3 because
+  `ExecutableLocator` resolves the real `codex`/`opencode` via the login shell before the stubs.
+- Rebuilt and reinstalled over a backed-up v0.10.20 bundle; signature/identity/version/revision/
+  hash checks and relaunch passed. Receipt: `build/personal-0.11.3-receipt.txt`.
+
 ### 2026-09-13 — v0.10.15 → v0.10.20
 
 - Rebased `personal` onto upstream `v0.10.20` (`036262e`); all 7 commits applied cleanly
