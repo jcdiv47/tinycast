@@ -73,6 +73,15 @@ jobs:
           security unlock-keychain -p "$KPW" "$KEYCHAIN"
           security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "${P12_PASSWORD}" -A -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          # A whole-keychain export would smuggle other identities' private keys into this secret.
+          IDS="$(security find-identity -p codesigning "$KEYCHAIN" | awk '/Valid identities only/{exit} /^ *[0-9]+\) /')"
+          KEYS="$(security dump-keychain "$KEYCHAIN" | grep -c 'class: 0x00000010')"
+          echo "Imported identity:${IDS}"
+          if [ "$(printf '%s\n' "$IDS" | grep -c .)" != 1 ] || [ "$KEYS" != 1 ] \
+            || [[ "$IDS" != *'"Tinycast Self-Signed"'* ]]; then
+            echo "::error::The p12 must hold only the Tinycast Self-Signed identity; re-export and rotate it"
+            exit 1
+          fi
           read -ra SEARCH <<< "$(security list-keychains -d user | tr -d '"')"
           security list-keychains -d user -s "$KEYCHAIN" "${SEARCH[@]}"
           rm -f "$RUNNER_TEMP/cert.p12"

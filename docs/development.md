@@ -224,10 +224,11 @@ The build signs with the secrets `SIGNING_P12_BASE64` and `SIGNING_P12_PASSWORD`
 same `Tinycast Self-Signed` identity local builds use. Export that one identity, not the
 keychain: [signing.md](signing.md#2-generate-the-ci-secrets)'s `security export -t identities`
 also exports every other identity in the login keychain. In Keychain Access, select
-`Tinycast Self-Signed` under **My Certificates**, **File → Export Items…** as `.p12`, then:
+`Tinycast Self-Signed` under **My Certificates**, **File → Export Items…** as `.p12`, then check
+and upload it. The release job also refuses a secret holding any other identity or key.
 
 ```sh
-openssl pkcs12 -in /tmp/signing.p12 -nokeys -passin pass:"$P12_PASSWORD" | grep subject=
+openssl pkcs12 -legacy -in /tmp/signing.p12 -nokeys -passin pass:"$P12_PASSWORD" | grep subject=
 # Exactly one line, CN=Tinycast Self-Signed. Anything more means another key would be uploaded.
 base64 -i /tmp/signing.p12 | tr -d '\n' | gh secret set SIGNING_P12_BASE64 --repo jcdiv47/tinycast
 gh secret set SIGNING_P12_PASSWORD --repo jcdiv47/tinycast --body "$P12_PASSWORD"
